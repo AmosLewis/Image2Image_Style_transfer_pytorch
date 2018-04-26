@@ -24,13 +24,13 @@ def extract(path_images_day, path_images_night, path_matches, path_output):
     day = []
     day_imgs = np.array(sorted(os.listdir(path_images_day)))
 
-    for img in day_imgs[matches[1]]:
+    for img in day_imgs[matches[1]-1]:
         day.append(extract_image(path_images_day+"/"+img))
     day = np.array(day)
 
     night = []
     night_imgs = np.array(sorted(os.listdir(path_images_night)))
-    for img in night_imgs[matches[0]]:
+    for img in night_imgs[matches[0]-1]:
         night.append(extract_image(path_images_night+"/"+img))
     night = np.array(night)
 
