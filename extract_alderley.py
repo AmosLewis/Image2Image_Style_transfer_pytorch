@@ -16,7 +16,7 @@ def extract(path_images_day, path_images_night, path_matches, path_output):
 
     matches = pd.read_csv(path_matches).as_matrix()
     print(matches.shape)
-    matches = matches[:len(matches) // 2]
+    matches = matches[:len(matches) // 10]
     print(matches)
     max_img = matches.max()
 

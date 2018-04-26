@@ -27,8 +27,8 @@ class AlderleyWrapper(Dataset):
         super(AlderleyWrapper, self).__init__()
         path = "data/alderley/alderley.npy"
         data = np.transpose(np.load(path), (1, 0, 2, 3, 4))
-        self.days = torch.Tensor(x[0])
-        self.nights = torch.Tensor(y[1])
+        self.days = torch.Tensor(data[0])
+        self.nights = torch.Tensor(data[1])
         print("Alderley dataset loaded")
 
     def __len__(self):
@@ -36,17 +36,17 @@ class AlderleyWrapper(Dataset):
 
     def __getitem__(self, item):
         # print(item)
-        x, y = self.days[item], self.nights[item]
+        x, y = self.nights[item], self.days[item]
         # print(x.size())
         # print(y.size())
         return x, y, y
 
 
-def alderley_cgan_data_loader(args):
+def alderley_cgan_data_loader(args, dataset):
     # Create DataLoader for Alderley
     kwargs = {'num_workers': 2, 'pin_memory': True} if args.cuda else {}
     train_loader = DataLoader(
-        AlderleyWrapper(),
+        dataset,
         batch_size=args.batch_size, shuffle=True, **kwargs)
     return train_loader
 
@@ -60,35 +60,27 @@ class CGeneratorNetwork(nn.Sequential):
             nn.InstanceNorm2d(32) if args.generator_instancenorm else None,
             nn.LeakyReLU(),
             nn.Dropout(0.5),
-            nn.Conv2d(32, 64, kernel_size=4, stride=2, padding=1),  # N, 64,128,256
+            nn.Conv2d(32, 64, kernel_size=8, stride=4, padding=2),  # N, 64,64,128
             nn.InstanceNorm2d(64) if args.generator_instancenorm else None,
             nn.LeakyReLU(),
             nn.Dropout(0.5),
-            nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1),  # N, 128,64,128
+            nn.Conv2d(64, 128, kernel_size=8, stride=4, padding=2),  # N, 128,16,32
             nn.InstanceNorm2d(128) if args.generator_instancenorm else None,
             nn.LeakyReLU(),
             nn.Dropout(0.5),
-            nn.Conv2d(128, 256, kernel_size=4, stride=2, padding=1),  # N, 256,32,64
+            nn.Conv2d(128, 256, kernel_size=8, stride=4, padding=2),  # N, 256,4,8
             nn.InstanceNorm2d(256) if args.generator_instancenorm else None,
             nn.LeakyReLU(),
             nn.Dropout(0.5),
-            nn.ConvTranspose2d(256, 512, kernel_size=4, stride=2, padding=1),  # N, 128,16,32
+            nn.ConvTranspose2d(256, 128, kernel_size=8, stride=4, padding=2),  # N, 128,16,32
             nn.InstanceNorm2d(128) if args.generator_instancenorm else None,
             nn.LeakyReLU(),
             nn.Dropout(0.5),
-            nn.Conv2d(512, 256, kernel_size=4, stride=2, padding=1),  # N, 256,32,64
-            nn.InstanceNorm2d(256) if args.generator_instancenorm else None,
-            nn.LeakyReLU(),
-            nn.Dropout(0.5),
-            nn.ConvTranspose2d(256, 128, kernel_size=4, stride=2, padding=1),  # N, 128,64,128
-            nn.InstanceNorm2d(128) if args.generator_instancenorm else None,
-            nn.LeakyReLU(),
-            nn.Dropout(0.5),
-            nn.ConvTranspose2d(128, 64, kernel_size=4, stride=2, padding=1),  # N, 64,128,256
+            nn.ConvTranspose2d(128, 64, kernel_size=8, stride=4, padding=2),  # N, 64,64,128
             nn.InstanceNorm2d(64) if args.generator_instancenorm else None,
             nn.LeakyReLU(),
             nn.Dropout(0.5),
-            nn.ConvTranspose2d(64, 32, kernel_size=4, stride=2, padding=1),  # N, 32,256,512
+            nn.ConvTranspose2d(64, 32, kernel_size=8, stride=4, padding=2),  # N, 32,256,512
             nn.InstanceNorm2d(32) if args.generator_instancenorm else None,
             nn.LeakyReLU(),
             nn.Conv2d(32, 3, kernel_size=3, stride=1, padding=1),  # N, 3,256,512
@@ -97,34 +89,29 @@ class CGeneratorNetwork(nn.Sequential):
 
 class CDiscriminatorNetwork(nn.Module):
     # Network for discrimination
-    # Input is (N, 1, 256, 512)
+    # Input is (N, 6, 256, 512)
     def __init__(self, args):
         super(CDiscriminatorNetwork, self).__init__()
         self.trunk = nn.Sequential(*[m for m in [
-            nn.Conv2d(6, 64, kernel_size=4, stride=2, padding=1),  # N, 64, 128, 256
+            nn.Conv2d(6, 64, kernel_size=8, stride=4, padding=2),  # N, 64, 64, 128
             nn.InstanceNorm2d(64) if args.discriminator_instancenorm else None,
             nn.LeakyReLU(),
-            nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1),  # N, 128, 64, 128
+            nn.Conv2d(64, 128, kernel_size=8, stride=4, padding=2),  # N, 128, 16, 32
             nn.InstanceNorm2d(128) if args.discriminator_instancenorm else None,
             nn.LeakyReLU(),
-            nn.Conv2d(128, 256, kernel_size=4, stride=2, padding=1),  # N, 256, 32, 64
-            nn.InstanceNorm2d(128) if args.discriminator_instancenorm else None,
+            nn.Conv2d(128, 256, kernel_size=8, stride=4, padding=2),  # N, 256, 4, 8
+            nn.InstanceNorm2d(256) if args.discriminator_instancenorm else None,
             nn.LeakyReLU(),
-            nn.Conv2d(256, 256, kernel_size=4, stride=2, padding=1),  # N, 512, 16, 32
-            nn.InstanceNorm2d(128) if args.discriminator_instancenorm else None,
+            Reshape(-1, 256 * 4 * 8),  # N, 256 * 8 * 4
+            nn.Linear(256 * 4 * 8, 1024),  # N, 1024
+            nn.InstanceNorm1d(1024) if args.discriminator_instancenorm else None,
             nn.LeakyReLU(),
-            nn.Conv2d(256, 256, kernel_size=4, stride=2, padding=1),  # N, 512, 8, 16
-            nn.InstanceNorm2d(128) if args.discriminator_instancenorm else None,
-            nn.LeakyReLU(),
-            Reshape(-1, 256 * 8 * 16),  # N, 128*8*8
-            nn.Linear(128 * 8 * 8, 2048),  # N, 1024
-            nn.InstanceNorm1d(2048) if args.discriminator_instancenorm else None,
-            nn.LeakyReLU(),
-            nn.Linear(2048, 1),  # N, 1
+            nn.Linear(1024, 1),  # N, 1
             Reshape(-1)] if m is not None])  # N
 
     def forward(self, x, y):
         h = torch.cat((x, y), dim=1)
+
         h = self.trunk(h)
         return h
 
@@ -181,13 +168,13 @@ class CWGANDiscriminatorLoss(WGANDiscriminatorLoss):
 class CGenerateDataCallback(Callback):
     # Callback saves generated images to a folder
 
-    def __init__(self, args, gridsize=1):
+    def __init__(self, args, dataset, gridsize=1):
         super(CGenerateDataCallback, self).__init__()
         self.count = 0  # iteration counter
         self.image_count = 0  # image counter
         self.frequency = args.image_frequency
         self.gridsize = gridsize
-        self.dataset = AlderleyWrapper()
+        self.dataset = dataset
         self.y = self.dataset[0][1].unsqueeze(0)
 
     def end_of_training_iteration(self, **_):
@@ -226,13 +213,13 @@ class CGenerateDataCallback(Callback):
 
 class CGeneratorTrainingCallback(Callback):
     # Callback periodically trains the generator
-    def __init__(self, args, parameters, criterion):
+    def __init__(self, args, parameters, criterion, dataset):
         self.criterion = criterion
         self.opt = Adam(parameters, args.generator_lr)
         self.batch_size = args.batch_size
         self.count = 0
         self.frequency = args.generator_frequency
-        self.dataset = AlderleyWrapper()
+        self.dataset = dataset
         self.len = len(self.dataset)
 
     def end_of_training_iteration(self, **_):
@@ -260,8 +247,10 @@ class CGeneratorTrainingCallback(Callback):
 
 
 def run(args):
+    dataset = AlderleyWrapper()
+
     save_args(args)  # save command line to a file for reference
-    train_loader = alderley_cgan_data_loader(args)  # get the data
+    train_loader = alderley_cgan_data_loader(args, dataset=dataset)  # get the data
     model = CGANModel(
         args,
         discriminator=CDiscriminatorNetwork(args),
@@ -274,11 +263,11 @@ def run(args):
     trainer.save_every((1, 'epochs'))
     trainer.save_to_directory(args.save_directory)
     trainer.set_max_num_epochs(args.epochs)
-    trainer.register_callback(CGenerateDataCallback(args))
+    trainer.register_callback(CGenerateDataCallback(args, dataset=dataset))
     trainer.register_callback(CGeneratorTrainingCallback(
         args,
         parameters=model.generator.parameters(),
-        criterion=WGANGeneratorLoss()))
+        criterion=WGANGeneratorLoss(), dataset=dataset))
     trainer.bind_loader('train', train_loader, num_inputs=2)
     # Custom logging configuration so it knows to log our images
     logger = TensorboardLogger(
@@ -307,13 +296,15 @@ def main(argv):
                         default='output/alderley_cwgangp/v1', help='output directory')
 
     # Configuration
-    parser.add_argument('--batch-size', type=int, default=32, metavar='N', help='batch size')
-    parser.add_argument('--epochs', type=int, default=100, metavar='N', help='number of epochs')
-    parser.add_argument('--image-frequency', type=int, default=10,
+    parser.add_argument('--batch-size', type=int, default=8,
+                        metavar='N', help='batch size')
+    parser.add_argument('--epochs', type=int, default=100,
+                        metavar='N', help='number of epochs')
+    parser.add_argument('--image-frequency', type=int, default=60,
                         metavar='N', help='frequency to write images')
     parser.add_argument('--log-image-frequency', type=int, default=100,
                         metavar='N', help='frequency to log images')
-    parser.add_argument('--generator-frequency', type=int, default=10,
+    parser.add_argument('--generator-frequency', type=int, default=2,
                         metavar='N', help='frequency to train generator')
 
     # Hyperparameters
