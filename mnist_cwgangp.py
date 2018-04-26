@@ -76,7 +76,8 @@ class CDiscriminatorNetwork(nn.Module):
         super(CDiscriminatorNetwork, self).__init__()
         self.embedding = nn.Embedding(10, args.embedding_dim)
         self.trunk = nn.Sequential(*[m for m in [
-            nn.Conv2d(1 + args.embedding_dim, 64, kernel_size=4, stride=2, padding=1),  # N, 64, 14, 14
+            nn.Conv2d(1 + args.embedding_dim, 64, kernel_size=4,
+                      stride=2, padding=1),  # N, 64, 14, 14
             nn.BatchNorm2d(64) if args.discriminator_batchnorm else None,
             nn.LeakyReLU(),
             nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1),  # N, 128, 7, 7
@@ -153,7 +154,8 @@ class CGenerateDataCallback(GenerateDataCallback):
     # Callback saves generated images to a folder
     def __init__(self, args):
         super(CGenerateDataCallback, self).__init__(args, gridsize=10)
-        self.y = torch.arange(0, 10).unsqueeze(1).expand(-1, 10).contiguous().view(-1).contiguous().long()
+        self.y = torch.arange(0, 10).unsqueeze(
+            1).expand(-1, 10).contiguous().view(-1).contiguous().long()
 
     def end_of_training_iteration(self, **_):
         # Check if it is time to generate images
@@ -235,32 +237,46 @@ def run(args):
     trainer.fit()
 
     # Generate video from saved images
+
+
 def main(argv):
     # Training settings
     parser = argparse.ArgumentParser(description='PyTorch GAN Example')
 
     # Output directory
-    parser.add_argument('--save-directory', type=str, default='output/mnist_cwgangp/v1', help='output directory')
+    parser.add_argument('--save-directory', type=str,
+                        default='output/mnist_cwgangp/v1', help='output directory')
 
     # Configuration
     parser.add_argument('--batch-size', type=int, default=128, metavar='N', help='batch size')
     parser.add_argument('--epochs', type=int, default=50, metavar='N', help='number of epochs')
-    parser.add_argument('--image-frequency', type=int, default=10, metavar='N', help='frequency to write images')
-    parser.add_argument('--log-image-frequency', type=int, default=100, metavar='N', help='frequency to log images')
-    parser.add_argument('--generator-frequency', type=int, default=10, metavar='N', help='frequency to train generator')
+    parser.add_argument('--image-frequency', type=int, default=10,
+                        metavar='N', help='frequency to write images')
+    parser.add_argument('--log-image-frequency', type=int, default=100,
+                        metavar='N', help='frequency to log images')
+    parser.add_argument('--generator-frequency', type=int, default=10,
+                        metavar='N', help='frequency to train generator')
 
     # Hyperparameters
     parser.add_argument('--latent-dim', type=int, default=100, metavar='N', help='latent dimension')
-    parser.add_argument('--embedding-dim', type=int, default=32, metavar='N', help='latent dimension')
-    parser.add_argument('--discriminator-lr', type=float, default=3e-4, metavar='N', help='discriminator learning rate')
-    parser.add_argument('--generator-lr', type=float, default=3e-4, metavar='N', help='generator learning rate')
-    parser.add_argument('--penalty-weight', type=float, default=20., metavar='N', help='gradient penalty weight')
-    parser.add_argument('--discriminator-batchnorm', type=bool, default=False, metavar='N', help='enable BN')
-    parser.add_argument('--generator-batchnorm', type=bool, default=True, metavar='N', help='enable BN')
+    parser.add_argument('--embedding-dim', type=int, default=32,
+                        metavar='N', help='latent dimension')
+    parser.add_argument('--discriminator-lr', type=float, default=3e-4,
+                        metavar='N', help='discriminator learning rate')
+    parser.add_argument('--generator-lr', type=float, default=3e-4,
+                        metavar='N', help='generator learning rate')
+    parser.add_argument('--penalty-weight', type=float, default=20.,
+                        metavar='N', help='gradient penalty weight')
+    parser.add_argument('--discriminator-batchnorm', type=bool,
+                        default=False, metavar='N', help='enable BN')
+    parser.add_argument('--generator-batchnorm', type=bool,
+                        default=True, metavar='N', help='enable BN')
 
     # Flags
-    parser.add_argument('--no-cuda', action='store_true', default=False, help='disables CUDA training')
-    parser.add_argument('--no-ffmpeg', action='store_true', default=True, help='disables video generation')
+    parser.add_argument('--no-cuda', action='store_true',
+                        default=False, help='disables CUDA training')
+    parser.add_argument('--no-ffmpeg', action='store_true',
+                        default=True, help='disables video generation')
 
     args = parser.parse_args(argv)
     args.cuda = not args.no_cuda and torch.cuda.is_available()
