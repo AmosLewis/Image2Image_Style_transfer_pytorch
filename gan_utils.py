@@ -20,10 +20,10 @@ from torchvision import transforms
 
 def initializer(m):
     # Run xavier on all weights and zero all biases
-    if hasattr(m, 'weight'):
+    if hasattr(m, 'weight') and m.weight is not None:
         if m.weight.ndimension() > 1:
             xavier_uniform(m.weight.data)
-    if hasattr(m, 'bias'):
+    if hasattr(m, 'bias') and m.bias is not None:
         m.bias.data.zero_()
 
 
