@@ -177,6 +177,7 @@ class CGenerateDataCallback(Callback):
         self.gridsize = gridsize
         self.dataset = dataset
         self.y = self.dataset[0][1].unsqueeze(0)
+        self.save_images(source=True)
 
     def end_of_training_iteration(self, **_):
         # Check if it is time to generate images
@@ -195,15 +196,19 @@ class CGenerateDataCallback(Callback):
         self.trainer.model.train()
         return generated
 
-    def save_images(self):
+    def save_images(self, source=False):
         # Generate images
         path = os.path.join(self.trainer.save_directory, 'generated_images')
         os.makedirs(path, exist_ok=True)  # create directory if necessary
-        image_path = os.path.join(path, '{:08d}.png'.format(self.image_count))
         self.image_count += 1
-        generated = self.generate()
+        if(source):
+            image = self.y
+            image_path = os.path.join(path, 'source.png'.format(self.image_count))
+        else:
+            image = self.generate()
+            image_path = os.path.join(path, 'target_generated{:08d}.png'.format(self.image_count))
         # Reshape, scale, and cast the data so it can be saved
-        grid = format_images(generated).squeeze(0).permute(1, 2, 0)
+        grid = format_images(image).squeeze(0).permute(1, 2, 0)
         if grid.size(2) == 1:
             grid = grid.squeeze(2)
         array = grid.data.cpu().numpy() * 255.
