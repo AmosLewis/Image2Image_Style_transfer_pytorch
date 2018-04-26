@@ -7,7 +7,7 @@ from PIL import Image
 def extract_image(img_path):
     img = Image.open(img_path)
     img = img.crop((0, 0, 512, 256))
-    array = np.transpose(np.array(img), (2, 0, 1))
+    array = np.transpose(np.array(img), (2, 0, 1))/255
     print(img_path, array.shape)
     return array
 

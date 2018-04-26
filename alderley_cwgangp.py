@@ -29,7 +29,8 @@ class AlderleyWrapper(Dataset):
         data = np.transpose(np.load(path), (1, 0, 2, 3, 4))
         self.days = torch.Tensor(data[0])
         self.nights = torch.Tensor(data[1])
-        print("Alderley dataset loaded")
+        print(self.days[0].mean(), self.nights[0].mean())
+        print("Ald.erley dataset loaded")
 
     def __len__(self):
         return len(self.days)
