@@ -16,26 +16,26 @@ def extract(path_images_day, path_images_night, path_matches, path_output):
 
     matches = pd.read_csv(path_matches).as_matrix()
     print(matches.shape)
-    matches = matches[:len(matches) // 10]
+
+    a = np.arange(0, len(matches), 10)
+    matches = matches[a].T
     print(matches)
-    max_img = matches.max()
 
     day = []
-    day_imgs = sorted(os.listdir(path_images_day))
-    for img in day_imgs[:max_img+1]:
+    day_imgs = np.array(sorted(os.listdir(path_images_day)))
+
+    for img in day_imgs[matches[1]]:
         day.append(extract_image(path_images_day+"/"+img))
     day = np.array(day)
 
     night = []
-    night_imgs = sorted(os.listdir(path_images_night))
-    for img in night_imgs[:max_img + 1]:
+    night_imgs = np.array(sorted(os.listdir(path_images_night)))
+    for img in night_imgs[matches[0]]:
         night.append(extract_image(path_images_night+"/"+img))
     night = np.array(night)
 
-    matches = matches.T
-
-    day = np.expand_dims(day[matches[0]], axis=1)
-    night = np.expand_dims(night[matches[1]], axis=1)
+    day = np.expand_dims(day, axis=1)
+    night = np.expand_dims(night, axis=1)
     data = np.concatenate([day, night], axis=1)
     print(data.shape)
 
@@ -44,8 +44,8 @@ def extract(path_images_day, path_images_night, path_matches, path_output):
 
 if __name__ == "__main__":
     prefix = "data/alderley/"
-    path_images_day = prefix+"FRAMESA"
-    path_images_night = prefix+"FRAMESB"
+    path_images_day = prefix+"FRAMESB"
+    path_images_night = prefix+"FRAMESA"
     path_matches = prefix+"framematches.csv"
     path_output = prefix+"alderley.npy"
 
