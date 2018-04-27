@@ -30,7 +30,7 @@ class AlderleyWrapper(Dataset):
         self.days = torch.Tensor(data[0])
         self.nights = torch.Tensor(data[1])
         print(self.days[0].mean(), self.nights[0].mean())
-        print("Ald.erley dataset loaded")
+        print("Alderley dataset loaded")
 
     def __len__(self):
         return len(self.days)
@@ -177,10 +177,13 @@ class CGenerateDataCallback(Callback):
         self.gridsize = gridsize
         self.dataset = dataset
         self.y = self.dataset[0][1].unsqueeze(0)
-        self.save_images(source=True)
+        self.xreal = self.dataset[0][0].unsqueeze(0)
 
     def end_of_training_iteration(self, **_):
         # Check if it is time to generate images
+        if(self.image_count == 0 and self.count == 0):
+            self.save_images(source=True)
+            self.save_images(real=True)
         self.count += 1
         if self.count > self.frequency:
             self.save_images()
@@ -196,14 +199,17 @@ class CGenerateDataCallback(Callback):
         self.trainer.model.train()
         return generated
 
-    def save_images(self, source=False):
+    def save_images(self, source=False, real=False):
         # Generate images
         path = os.path.join(self.trainer.save_directory, 'generated_images')
         os.makedirs(path, exist_ok=True)  # create directory if necessary
         self.image_count += 1
         if(source):
-            image = self.y
+            image = Variable(self.y)
             image_path = os.path.join(path, 'source.png'.format(self.image_count))
+        elif(real):
+            image = Variable(self.xreal)
+            image_path = os.path.join(path, 'real_target.png'.format(self.image_count))
         else:
             image = self.generate()
             image_path = os.path.join(path, 'target_generated{:08d}.png'.format(self.image_count))
@@ -266,6 +272,7 @@ def run(args):
     trainer = Trainer(model)
     trainer.build_criterion(CWGANDiscriminatorLoss(penalty_weight=args.penalty_weight, model=model))
     trainer.build_optimizer('Adam', model.discriminator.parameters(), lr=args.discriminator_lr)
+
     trainer.save_every((1, 'epochs'))
     trainer.save_to_directory(args.save_directory)
     trainer.set_max_num_epochs(args.epochs)
@@ -304,7 +311,7 @@ def main(argv):
     # Configuration
     parser.add_argument('--batch-size', type=int, default=8,
                         metavar='N', help='batch size')
-    parser.add_argument('--epochs', type=int, default=100,
+    parser.add_argument('--epochs', type=int, default=250,
                         metavar='N', help='number of epochs')
     parser.add_argument('--image-frequency', type=int, default=60,
                         metavar='N', help='frequency to write images')
