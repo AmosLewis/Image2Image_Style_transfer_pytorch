@@ -17,7 +17,7 @@ def extract(path_images_day, path_images_night, path_matches, path_output):
     matches = pd.read_csv(path_matches).as_matrix()
     print(matches.shape)
 
-    a = np.arange(0, len(matches), 10)
+    a = np.arange(0, len(matches), 50)
     matches = matches[a].T
     print(matches)
 
