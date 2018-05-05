@@ -9,7 +9,7 @@ def extract_image(img_path):
     img = img.crop((0, 0, 512, 256))
     array = np.transpose(np.array(img), (2, 0, 1))/255
     print(img_path, array.shape)
-    return array
+    return array.astype(np.float16)
 
 
 def extract(path_images_day, path_images_night, path_matches, path_output):
