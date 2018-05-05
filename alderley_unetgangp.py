@@ -27,8 +27,10 @@ class AlderleyWrapper(Dataset):
         super(AlderleyWrapper, self).__init__()
         path = "data/alderley/alderley.npy"
         data = np.transpose(np.load(path), (1, 0, 2, 3, 4))
-        self.days = torch.Tensor(data[0])
-        self.nights = torch.Tensor(data[1])
+        self.days = torch.Tensor(data[0][:-1])
+        self.nights = torch.Tensor(data[1][:-1])
+        self.valid_day = torch.Tensor(data[0][-1:])
+        self.valid_night = torch.Tensor(data[1][-1:])
         print(self.days[0].mean(), self.nights[0].mean())
         print("Alderley dataset loaded")
 
@@ -41,6 +43,13 @@ class AlderleyWrapper(Dataset):
         # print(x.size())
         # print(y.size())
         return x, y, y
+
+    def valid_pictures(self):
+        # print(item)
+        x, y = self.valid_day, self.valid_night
+        # print(x.size())
+        # print(y.size())
+        return x, y
 
 
 def alderley_cgan_data_loader(args, dataset):
@@ -105,9 +114,9 @@ class CGANModel(nn.Module):
         # Run discriminator on an input
         return self.discriminator(x, y)
 
-    def y_fake(self, y):
+    def y_fake(self, xfake, y):
         # Run discriminator on generated images
-        yfake = self.discriminate(self.generate(y), y)
+        yfake = self.discriminate(xfake, y)
         return yfake
 
     def y_real(self, xreal, y):
@@ -118,10 +127,15 @@ class CGANModel(nn.Module):
         self._state_hooks['real_images'] = format_images(xreal)
         return yreal
 
-    def forward(self, xreal, y):
-        # Calculate and return y_real and y_fake
+    def l1_loss(self, xreal, xfake):
+        loss = torch.abs(xfake - xreal)
+        loss = loss.sum() / xreal.shape[0]
+        return loss
 
-        return self.y_real(xreal, y), self.y_fake(y)
+    def forward(self, xreal, y):
+        # Calculate and return y_real and y_fake and the L1 loss
+        xfake = self.generate(y)
+        return self.y_real(xreal, y), self.y_fake(xfake, y)
 
 
 class CWGANDiscriminatorLoss(WGANDiscriminatorLoss):
@@ -140,8 +154,8 @@ class CGenerateDataCallback(Callback):
         self.frequency = args.image_frequency
         self.gridsize = gridsize
         self.dataset = dataset
-        self.y = self.dataset[0][1].unsqueeze(0)
-        self.xreal = self.dataset[0][0].unsqueeze(0)
+        self.y = self.dataset.valid_night
+        self.xreal = self.dataset.valid_day
 
     def end_of_training_iteration(self, **_):
         # Check if it is time to generate images
@@ -197,6 +211,7 @@ class CGeneratorTrainingCallback(Callback):
         self.frequency = args.generator_frequency
         self.dataset = dataset
         self.len = len(self.dataset)
+        self.discriminator_L1lambda = args.discriminator_L1lambda
 
     def end_of_training_iteration(self, **_):
         # Each iteration check if it is time to train the generator
@@ -210,12 +225,16 @@ class CGeneratorTrainingCallback(Callback):
         # Train the generator
 
         # Calculate yfake
-        y = Variable(self.dataset[np.random.randint(0, self.len)][1]).unsqueeze(0)
+        random_index = np.random.randint(0, self.len)
+        y = Variable(self.dataset[random_index][1]).unsqueeze(0)
+        xreal = Variable(self.dataset[random_index][0]).unsqueeze(0).cuda()
         if self.trainer.is_cuda():
             y = y.cuda()
-        yfake = self.trainer.model.y_fake(y)
+        xfake = self.trainer.model.generate(y)
+        yfake = self.trainer.model.y_fake(xfake, y)
+        l1 = self.trainer.model.l1_loss(xreal, xfake)
         # Calculate loss
-        loss = self.criterion(yfake)
+        loss = self.criterion(yfake) + l1 * self.discriminator_L1lambda
         # Perform update
         self.opt.zero_grad()
         loss.backward()
@@ -263,7 +282,7 @@ def main(argv):
 
     # Output directory
     parser.add_argument('--save-directory', type=str,
-                        default='output/alderley_cwgangp/v1', help='output directory')
+                        default='output/alderley_unetgangp/v1', help='output directory')
 
     # Configuration
     parser.add_argument('--batch-size', type=int, default=8,
@@ -288,6 +307,10 @@ def main(argv):
                         default=False, metavar='N', help='enable IN')
     parser.add_argument('--generator-instancenorm', type=bool,
                         default=True, metavar='N', help='enable IN')
+    parser.add_argument('--discriminator-L1', type=bool,
+                        default=True, metavar='N', help='enable IN')
+    parser.add_argument('--discriminator-L1lambda', type=float,
+                        default=100, metavar='N', help='enable IN')
 
     # Flags
     parser.add_argument('--no-cuda', action='store_true',
