@@ -8,11 +8,6 @@ from torch import nn
 from torch.autograd import Variable
 from torch.autograd import grad
 
-class CWGANDiscriminatorLoss(WGANDiscriminatorLoss):
-    def discriminate(self, xmix):
-        y = self.model._state_hooks['y']
-        return self.model.discriminate(xmix, y)
-
 class WGANDiscriminatorLoss(nn.Module):
     def __init__(self, penalty_weight, model):
         super(WGANDiscriminatorLoss, self).__init__()
@@ -56,3 +51,9 @@ class WGANGeneratorLoss(nn.BCEWithLogitsLoss):
     def forward(self, yfake):
         loss = -yfake.mean()
         return loss
+
+    
+class CWGANDiscriminatorLoss(WGANDiscriminatorLoss):
+    def discriminate(self, xmix):
+        y = self.model._state_hooks['y']
+        return self.model.discriminate(xmix, y)
