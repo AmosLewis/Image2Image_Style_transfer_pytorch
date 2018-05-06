@@ -112,8 +112,9 @@ class CDiscriminatorNetwork(nn.Module):
 
     def forward(self, x, y):
         h = torch.cat((x, y), dim=1)
-
+        # print(h.size())
         h = self.trunk(h)
+        # print(h.size())
         return h
 
 

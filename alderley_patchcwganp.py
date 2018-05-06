@@ -26,7 +26,8 @@ class AlderleyWrapper(Dataset):
     def __init__(self):
         super(AlderleyWrapper, self).__init__()
         path = "../data/alderley.npy"
-        data = np.transpose(np.load(path), (1, 0, 2, 3, 4))
+        data = np.load(path)
+        data = np.transpose(data, (1, 0, 2, 3, 4))
         self.days = torch.Tensor(data[0])
         self.nights = torch.Tensor(data[1])
         print(self.days[0].mean(), self.nights[0].mean())
@@ -52,6 +53,8 @@ def alderley_cgan_data_loader(args, dataset):
     return train_loader
 
 # todo
+
+
 class CGeneratorNetwork(nn.Sequential):
     # Network for generation
     # Input is (N, 1, 256, 512)
@@ -91,6 +94,8 @@ class CGeneratorNetwork(nn.Sequential):
             nn.Sigmoid()] if m is not None])
 
 # todo
+
+
 class patchCDiscriminatorNetwork(nn.Module):
     # Network for discrimination
     # Input is (N, 6, 256, 512)
@@ -113,14 +118,18 @@ class patchCDiscriminatorNetwork(nn.Module):
             nn.Conv2d(128, 64, kernel_size=3, stride=2, padding=1),  # N, 64, 4, 8
             nn.InstanceNorm2d(64) if args.discriminator_instancenorm else None,
             nn.LeakyReLU(0.02),
-            nn.Conv2d(64, 1, kernel_size=3, stride=2, padding=1),  # N, 1, 2, 4
+            nn.Conv2d(64, 1, kernel_size=3, stride=1, padding=1),  # N, 1, 4, 8
             # todo
-            Reshape(-1)] if m is not None])  # N
+            Reshape(-1, 1*4*8)] if m is not None
+        ])  # N
 
     def forward(self, x, y):
         h = torch.cat((x, y), dim=1)
+        # print(h.size())
         h = self.trunk(h)
-        return h.mean()
+        # print(h.size())
+        # print(h.mean(dim=1).size())
+        return h.mean(dim=1)
 
 
 class patchCWGANModel(nn.Module):
@@ -315,7 +324,7 @@ def main(argv):
                         default='output/alderley_patchcwgangp/v2', help='output directory')
 
     # Configuration
-    parser.add_argument('--batch-size', type=int, default=16,
+    parser.add_argument('--batch-size', type=int, default=8,
                         metavar='N', help='batch size')
     parser.add_argument('--epochs', type=int, default=250,
                         metavar='N', help='number of epochs')
