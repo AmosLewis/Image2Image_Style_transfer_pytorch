@@ -250,7 +250,7 @@ def run(args):
     train_loader = alderley_cgan_data_loader(args, dataset=dataset)  # get the data
     model = CGANModel(
         args,
-#         discriminator=CDiscriminatorNetwork(args),
+        #         discriminator=CDiscriminatorNetwork(args),
         discriminator=patchCDiscriminatorNetwork(args),
         generator=UnetUpsample())
 
@@ -288,7 +288,7 @@ def main(argv):
                         default='output/alderley_patchunetgangp/v1', help='output directory')
 
     # Configuration
-    parser.add_argument('--batch-size', type=int, default=8,
+    parser.add_argument('--batch-size', type=int, default=4,
                         metavar='N', help='batch size')
     parser.add_argument('--epochs', type=int, default=2500,
                         metavar='N', help='number of epochs')
@@ -311,9 +311,9 @@ def main(argv):
     parser.add_argument('--generator-instancenorm', type=bool,
                         default=True, metavar='N', help='enable IN')
     parser.add_argument('--discriminator-L1', type=bool,
-                        default=True, metavar='N', help='enable IN')
+                        default=False, metavar='N', help='enable IN')
     parser.add_argument('--discriminator-L1lambda', type=float,
-                        default=100, metavar='N', help='enable IN')
+                        default=1, metavar='N', help='enable IN')
 
     # Flags
     parser.add_argument('--no-cuda', action='store_true',

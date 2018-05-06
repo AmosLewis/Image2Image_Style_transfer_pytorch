@@ -120,7 +120,8 @@ class patchCDiscriminatorNetwork(nn.Module):
             nn.LeakyReLU(0.02),
             nn.Conv2d(64, 1, kernel_size=3, stride=1, padding=1),  # N, 1, 4, 8
             # todo
-            Reshape(-1, 1*4*8)] if m is not None
+            Reshape(-1, 1*4*8),
+            nn.Sigmoid()] if m is not None
         ])  # N
 
     def forward(self, x, y):
