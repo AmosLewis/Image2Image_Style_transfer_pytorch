@@ -3,6 +3,7 @@ import math
 import os
 import sys
 import numpy as np
+import functools
 from PIL import Image
 
 import torch

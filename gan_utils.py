@@ -55,8 +55,8 @@ class Reshape(nn.Module):
         super(Reshape, self).__init__()
         self.shape = shape
 
-    def forward(self, input):
-        return input.view(*self.shape)
+    def forward(self, inp):
+        return inp.view(*self.shape)
 
 
 class GANModel(nn.Module):

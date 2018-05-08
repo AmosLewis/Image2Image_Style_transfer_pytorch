@@ -19,6 +19,7 @@ from inferno.trainers.callbacks.base import Callback
 from gan_utils import Reshape, format_images
 from gan_utils import save_args, initializer
 from wgan_loss import WGANDiscriminatorLoss, WGANGeneratorLoss
+from alderley_patchcwganp import patchCDiscriminatorNetwork
 from unet import UnetUpsample
 
 
@@ -154,8 +155,8 @@ class CGenerateDataCallback(Callback):
         self.frequency = args.image_frequency
         self.gridsize = gridsize
         self.dataset = dataset
-        self.y = self.dataset.valid_night
-        self.xreal = self.dataset.valid_day
+        self.y = self.dataset.valid_day
+        self.xreal = self.dataset.valid_night
 
     def end_of_training_iteration(self, **_):
         # Check if it is time to generate images

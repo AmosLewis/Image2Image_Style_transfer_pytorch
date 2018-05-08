@@ -19,9 +19,9 @@ class WGANDiscriminatorLoss(nn.Module):
         return self.model.discriminate(xmix)
 
     # Loss function for discriminator
-    def forward(self, input, _):
+    def forward(self, inp, _):
         # Targets are ignored
-        yreal, yfake = input  # unpack inputs
+        yreal, yfake = inp  # unpack inputs
 
         # Main loss calculation
         wgan_loss = yfake.mean() - yreal.mean()

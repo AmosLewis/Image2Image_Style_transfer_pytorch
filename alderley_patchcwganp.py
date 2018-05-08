@@ -2,6 +2,7 @@ import argparse
 import math
 import os
 import sys
+import functools
 import numpy as np
 from PIL import Image
 
@@ -104,20 +105,20 @@ class patchCDiscriminatorNetwork(nn.Module):
         self.trunk = nn.Sequential(*[m for m in [
             nn.Conv2d(6, 64, kernel_size=8, stride=4, padding=2),  # N, 64, 64, 128
             # nn.InstanceNorm2d(64) if args.discriminator_instancenorm else None,
-            nn.LeakyReLU(0.02),
+            nn.LeakyReLU(0.2),
             nn.Conv2d(64, 128, kernel_size=3, stride=2, padding=1),  # N, 128, 32, 64
             nn.InstanceNorm2d(128) if args.discriminator_instancenorm else None,
-            nn.LeakyReLU(0.02),
+            nn.LeakyReLU(0.2),
             nn.Conv2d(128, 256, kernel_size=3, stride=2, padding=1),  # N, 256, 16, 32
             nn.InstanceNorm2d(256) if args.discriminator_instancenorm else None,
-            nn.LeakyReLU(0.02),
+            nn.LeakyReLU(0.2),
             # todo
             nn.Conv2d(256, 128, kernel_size=3, stride=2, padding=1),  # N, 128, 8, 16
             nn.InstanceNorm2d(128) if args.discriminator_instancenorm else None,
             nn.LeakyReLU(0.02),
             nn.Conv2d(128, 64, kernel_size=3, stride=2, padding=1),  # N, 64, 4, 8
             nn.InstanceNorm2d(64) if args.discriminator_instancenorm else None,
-            nn.LeakyReLU(0.02),
+            nn.LeakyReLU(0.2),
             nn.Conv2d(64, 1, kernel_size=3, stride=1, padding=1),  # N, 1, 4, 8
             # todo
             Reshape(-1, 1*4*8),
@@ -131,6 +132,32 @@ class patchCDiscriminatorNetwork(nn.Module):
         # print(h.size())
         # print(h.mean(dim=1).size())
         return h.mean(dim=1)
+
+
+class PixelDiscriminator(nn.Module):
+    def __init__(self, input_nc=6, ndf=64, norm_layer=nn.BatchNorm2d, use_sigmoid=True):
+        super(PixelDiscriminator, self).__init__()
+        if type(norm_layer) == functools.partial:
+            use_bias = norm_layer.func == nn.InstanceNorm2d
+        else:
+            use_bias = norm_layer == nn.InstanceNorm2d
+
+        self.net = [
+            nn.Conv2d(input_nc, ndf, kernel_size=1, stride=1, padding=0),
+            nn.LeakyReLU(0.2, True),
+            nn.Conv2d(ndf, ndf * 2, kernel_size=1, stride=1, padding=0, bias=use_bias),
+            norm_layer(ndf * 2),
+            nn.LeakyReLU(0.2, True),
+            nn.Conv2d(ndf * 2, 1, kernel_size=1, stride=1, padding=0, bias=use_bias)]
+
+        if use_sigmoid:
+            self.net.append(nn.Sigmoid())
+
+        self.net = nn.Sequential(*self.net)
+
+    def forward(self, input1, input2):
+        stacked = torch.cat((input1, input2), dim=1)
+        return self.net(stacked).mean(dim=3).mean(dim=2).squeeze(1)
 
 
 class patchCWGANModel(nn.Module):
@@ -174,6 +201,7 @@ class patchCWGANModel(nn.Module):
         # Calculate and return y_real and y_fake
 
         return self.y_real(xreal, y), self.y_fake(y)
+
 
 # class CWGANDiscriminatorLoss(WGANDiscriminatorLoss):
 #     def discriminate(self, xmix):

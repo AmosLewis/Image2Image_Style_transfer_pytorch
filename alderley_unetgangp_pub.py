@@ -19,7 +19,7 @@ from inferno.trainers.callbacks.base import Callback
 from gan_utils import Reshape, format_images
 from gan_utils import save_args, initializer
 from wgan_loss import WGANDiscriminatorLoss, WGANGeneratorLoss
-from unet_pub import UnetUpsample
+from unet_pub import UnetPub
 
 
 class AlderleyWrapper(Dataset):
@@ -259,7 +259,7 @@ def run(args):
     model = CGANModel(
         args,
         discriminator=CDiscriminatorNetwork(args),
-        generator=UnetUpsample())
+        generator=UnetPub())
 
     # Build trainer
     trainer = Trainer(model)

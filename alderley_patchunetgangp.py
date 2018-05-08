@@ -21,7 +21,7 @@ from gan_utils import save_args, initializer
 # from wgan_loss import WGANDiscriminatorLoss, WGANGeneratorLoss
 from wgan_loss import CWGANDiscriminatorLoss, WGANGeneratorLoss
 from unet import UnetUpsample
-from alderley_patchcwganp import patchCDiscriminatorNetwork
+from alderley_patchcwganp import patchCDiscriminatorNetwork, PixelDiscriminator, NLayerDiscriminator
 
 
 class AlderleyWrapper(Dataset):
@@ -83,7 +83,8 @@ class CDiscriminatorNetwork(nn.Module):
             nn.InstanceNorm1d(1024) if args.discriminator_instancenorm else None,
             nn.LeakyReLU(),
             nn.Linear(1024, 1),  # N, 1
-            Reshape(-1)] if m is not None])  # N
+            Reshape(-1),
+            nn.Sigmoid()] if m is not None])  # N
 
     def forward(self, x, y):
         h = torch.cat((x, y), dim=1)
@@ -94,10 +95,13 @@ class CDiscriminatorNetwork(nn.Module):
 
 class CGANModel(nn.Module):
     # GAN containing generator and discriminator
-    def __init__(self, args, discriminator, generator):
+    def __init__(self, args, discriminators, generator):
         super(CGANModel, self).__init__()
-        self.discriminator = discriminator
+        self.discriminators = discriminators
         self.generator = generator
+
+        if args.cuda:
+            self.discriminators = [discriminator.cuda() for discriminator in discriminators]
 
         self._state_hooks = {}  # used by inferno for logging
         self.apply(initializer)  # initialize the parameters
@@ -112,9 +116,13 @@ class CGANModel(nn.Module):
         self._state_hooks['generated_images'] = format_images(xfake)  # log the generated images
         return xfake
 
-    def discriminate(self, x, y):
+    def discriminate(self, x, y, weights=None):
         # Run discriminator on an input
-        return self.discriminator(x, y)
+        if weights is None:
+            weights = tuple((1 for _ in range(len(self.discriminators))))
+        weights = (5, 1)
+        results = [discriminator(x, y) for discriminator in self.discriminators]
+        return sum(weights[i] * result for i, result in enumerate(results))
 
     def y_fake(self, xfake, y):
         # Run discriminator on generated images
@@ -135,7 +143,7 @@ class CGANModel(nn.Module):
         return loss
 
     def forward(self, xreal, y):
-        # Calculate and return y_real and y_fake and the L1 loss
+        # Calculate and return y_real and y_fake
         xfake = self.generate(y)
         return self.y_real(xreal, y), self.y_fake(xfake, y)
 
@@ -156,8 +164,8 @@ class CGenerateDataCallback(Callback):
         self.frequency = args.image_frequency
         self.gridsize = gridsize
         self.dataset = dataset
-        self.y = self.dataset.valid_night
-        self.xreal = self.dataset.valid_day
+        self.y = self.dataset.valid_day
+        self.xreal = self.dataset.valid_night
 
     def end_of_training_iteration(self, **_):
         # Check if it is time to generate images
@@ -250,14 +258,13 @@ def run(args):
     train_loader = alderley_cgan_data_loader(args, dataset=dataset)  # get the data
     model = CGANModel(
         args,
-        #         discriminator=CDiscriminatorNetwork(args),
-        discriminator=patchCDiscriminatorNetwork(args),
+        discriminators=[PixelDiscriminator(), patchCDiscriminatorNetwork(args)],
         generator=UnetUpsample())
 
     # Build trainer
     trainer = Trainer(model)
     trainer.build_criterion(CWGANDiscriminatorLoss(penalty_weight=args.penalty_weight, model=model))
-    trainer.build_optimizer('Adam', model.discriminator.parameters(), lr=args.discriminator_lr)
+    trainer.build_optimizer('Adam', [parameter for discriminator in model.discriminators for parameter in discriminator.parameters()], lr=args.discriminator_lr)
 
     trainer.save_every((1, 'epochs'))
     trainer.save_to_directory(args.save_directory)
@@ -285,7 +292,7 @@ def main(argv):
 
     # Output directory
     parser.add_argument('--save-directory', type=str,
-                        default='output/alderley_patchunetgangp/v1', help='output directory')
+                        default='../output/alderley_patchunetgangp/v1', help='output directory')
 
     # Configuration
     parser.add_argument('--batch-size', type=int, default=4,
@@ -311,9 +318,9 @@ def main(argv):
     parser.add_argument('--generator-instancenorm', type=bool,
                         default=True, metavar='N', help='enable IN')
     parser.add_argument('--discriminator-L1', type=bool,
-                        default=False, metavar='N', help='enable IN')
+                        default=True, metavar='N', help='enable IN')
     parser.add_argument('--discriminator-L1lambda', type=float,
-                        default=1, metavar='N', help='enable IN')
+                        default=100, metavar='N', help='enable IN')
 
     # Flags
     parser.add_argument('--no-cuda', action='store_true',

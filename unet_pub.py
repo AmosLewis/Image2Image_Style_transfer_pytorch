@@ -12,10 +12,10 @@ from torch.optim import Adam
 import torch.nn.functional as F
 
 
-class UnetUpsample(nn.Module):
+class UnetPub(nn.Module):
 
     def __init__(self):
-        super(UnetUpsample, self).__init__()
+        super(UnetPub, self).__init__()
 
         # Input is (N, 3, 256, 512)
         # No BatchNorm after the first layer
@@ -67,7 +67,7 @@ class UnetUpsample(nn.Module):
 
         self.final_layer = nn.ConvTranspose2d(
             128, 3, kernel_size=4, stride=2, padding=1)  # N, 3, 256, 512
-        self.final_activation = nn.Tanh()
+        self.final_activation = nn.ReLU()
 
     def forward(self, y):
 
